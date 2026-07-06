@@ -21,6 +21,7 @@
         .btn { background-color: var(--active-nav-color); color: #fff; border: none; padding: 12px 24px; border-radius: 25px; font-weight: bold; cursor: pointer; font-size: 1em; display: inline-flex; align-items: center; gap: 8px; transition: opacity 0.2s, transform 0.1s; }
         .btn:hover { opacity: 0.9; }
         .btn:active { transform: scale(0.98); }
+        .btn:disabled { background-color: #6c757d !important; cursor: not-allowed; opacity: 0.6; }
         .btn-danger { background-color: #dc3545; }
         .btn-success { background-color: #28a745; }
         .btn-secondary { background-color: #6c757d; }
@@ -30,16 +31,20 @@
         .item-row input { margin: 0; }
         #dark-mode-toggle { position: fixed; top: 20px; left: 20px; z-index: 1001; width: 50px; height: 50px; border-radius: 50%; background-color: var(--fab-bg); color: var(--fab-color); border: 1px solid var(--separator-color); box-shadow: 0 4px 8px rgba(0,0,0,0.15); font-size: 1.2em; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background-color 0.3s, color 0.3s, transform 0.2s; }
         #dark-mode-toggle:hover { transform: scale(1.1); }
-        .status { padding: 15px; border-radius: 8px; margin-top: 20px; display: none; font-weight: bold; }
+        .status { padding: 15px; border-radius: 8px; margin-top: 20px; font-weight: bold; display: none; }
         .status.success { background-color: rgba(40, 167, 69, 0.2); color: #28a745; display: block; }
         .status.error { background-color: rgba(220, 53, 69, 0.2); color: #dc3545; display: block; }
         .status.loading { background-color: rgba(0, 123, 255, 0.2); color: #007bff; display: block; }
+        .guide-box { background-color: rgba(0, 123, 255, 0.05); border: 1px solid rgba(0, 123, 255, 0.15); border-radius: 10px; padding: 15px; margin-top: 25px; font-size: 0.95em; line-height: 1.5; }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>מערכת ניהול תוכן ל-2580</h1>
         
+        <!-- תיבת סטטוס ופידבק -->
+        <div id="status-box" class="status"></div>
+
         <div class="row">
             <div class="flex-grow">
                 <label for="gh-repo">מאגר ב-GitHub (מבנה: username/repo):</label>
@@ -55,7 +60,7 @@
             </div>
         </div>
 
-        <button class="btn btn-secondary" onclick="loadFromGitHub()"><i class="fas fa-sync"></i> טען נתונים מהמאגר</button>
+        <button id="load-btn" class="btn btn-secondary" onclick="loadFromGitHub()"><i class="fas fa-sync"></i> טען נתונים מהמאגר</button>
 
         <hr style="border: 0; height: 1px; background-color: var(--separator-color); margin: 30px 0;">
 
@@ -70,11 +75,18 @@
             טוען נתונים...
         </div>
 
-        <button class="btn btn-success" style="margin-top: 15px;" onclick="addItem()"><i class="fas fa-plus"></i> הוסף קישור חדש</button>
-        <button class="btn" style="margin-top: 15px; float: left;" onclick="saveChanges()"><i class="fas fa-save"></i> שמור שינויים באתר</button>
+        <button id="add-btn" class="btn btn-success" style="margin-top: 15px;" onclick="addItem()"><i class="fas fa-plus"></i> הוסף קישור חדש</button>
+        <button id="save-btn" class="btn" style="margin-top: 15px; float: left;" onclick="saveChanges()"><i class="fas fa-save"></i> שמור שינויים באתר</button>
 
         <div style="clear: both;"></div>
-        <div id="status-box" class="status"></div>
+
+        <div class="guide-box">
+            <strong>כיצד המערכת עובדת?</strong><br>
+            1. לחצו על "הוסף קישור חדש" ומלאו כותרת וכתובת אתר (URL).<br>
+            2. לחצו על כפתור השמירה הכחול. המערכת תשלח בקשה מאובטחת לשרתי GitHub.<br>
+            3. שרתי GitHub יריצו את תהליך השמירה (Action) ויעדכנו את קובץ הנתונים.<br>
+            4. <strong>שימו לב:</strong> לוקח ל-GitHub כדקה לעדכן את האתר בפועל.
+        </div>
     </div>
 
     <button id="dark-mode-toggle" title="שנה מצב תצוגה"><i class="fas fa-moon"></i></button>
@@ -106,16 +118,16 @@
         });
 
         async function loadFromGitHub() {
-            showStatus("טוען נתונים מ-GitHub...", "loading");
+            showStatus("טוען נתונים נוכחיים מ-GitHub...", "loading");
             try {
                 const res = await fetch('data.json?t=' + Date.now());
                 if (!res.ok) throw new Error("לא ניתן לקרוא את קובץ הנתונים");
                 siteData = await res.json();
                 renderActiveCategory();
-                showStatus("הנתונים נטענו בהצלחה!", "success");
-                setTimeout(hideStatus, 2000);
+                showStatus("הנתונים נטענו בהצלחה! מוכן לעריכה.", "success");
+                setTimeout(hideStatus, 3000);
             } catch (err) {
-                showStatus("לא ניתן לטעון נתונים. ודאו שקובץ data.json קיים במאגר.", "error");
+                showStatus("לא ניתן לטעון נתונים. ודאו שקובץ data.json קיים במאגר שלכם ב-GitHub.", "error");
             }
         }
 
@@ -126,7 +138,7 @@
 
             const list = siteData[category] || [];
             if (list.length === 0) {
-                container.innerHTML = '<div>אין פריטים בקטגוריה זו. לחצו על "הוסף קישור חדש" למטה.</div>';
+                container.innerHTML = '<div>אין פריטים בקטגוריה זו. לחצו על "הוסף קישור חדש" למטה כדי להתחיל.</div>';
                 return;
             }
 
@@ -155,6 +167,7 @@
             if (confirm("האם למחוק את פריט זה?")) {
                 siteData[category].splice(index, 1);
                 renderActiveCategory();
+                showStatus("הפריט נמחק מהרשימה הזמנית (זכרו ללחוץ על 'שמור שינויים' כדי להחיל זאת על האתר בפועל).", "success");
             }
         }
 
@@ -163,6 +176,7 @@
             if (!siteData[category]) siteData[category] = [];
             siteData[category].unshift({ title: '', url: '' });
             renderActiveCategory();
+            showStatus("נוספה שורה חדשה בראש הרשימה. מלאו את הפרטים.", "success");
         }
 
         async function calculateHMAC(keyStr, messageStr) {
@@ -189,15 +203,23 @@
             const token = document.getElementById('gh-token').value;
             const password = document.getElementById('admin-password').value;
 
+            const saveBtn = document.getElementById('save-btn');
+            const addBtn = document.getElementById('add-btn');
+
             if (!repo || !token || !password) {
-                showStatus("חובה להזין: מאגר, טוקן וסיסמה כדי לשמור שינויים.", "error");
+                showStatus("חובה למלא את שלושת שדות החיבור בראש העמוד: מאגר, טוקן וסיסמה.", "error");
                 return;
             }
 
             localStorage.setItem('admin_repo', repo);
             localStorage.setItem('admin_token', token);
 
-            showStatus("מחשב חתימת אבטחה ושולח ל-GitHub...", "loading");
+            // עדכון חזותי שהשמירה התחילה
+            saveBtn.disabled = true;
+            addBtn.disabled = true;
+            saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> שומר שינויים...';
+
+            showStatus("מחשב חתימת אבטחה ושולח פקודת עדכון ל-GitHub Actions...", "loading");
 
             try {
                 const payload = JSON.stringify(siteData);
@@ -220,14 +242,19 @@
                 });
 
                 if (response.status === 204) {
-                    showStatus("הבקשה נשלחה בהצלחה! השרת של GitHub מעבד את השינויים כעת. האתר יתעדכן תוך כדקה.", "success");
+                    showStatus("<i class='fas fa-check-circle'></i> הבקשה נשלחה לשרת בהצלחה! שרתי GitHub מתחילים לעדכן את האתר. האתר יתעדכן בפועל תוך כדקה.", "success");
                 } else {
                     const errText = await response.text();
-                    showStatus(`שגיאה בשליחת הבקשה (${response.status}): ${errText || "ודאו שהטוקן והגדרות המאגר נכונים."}`, "error");
+                    showStatus(`שגיאה בשליחת הבקשה (${response.status}): ${errText || "אנא ודאו שהטוקן שלכם בתוקף, וששם המאגר נכון."}`, "error");
                 }
             } catch (err) {
                 console.error(err);
-                showStatus("חלה שגיאה בתהליך השמירה.", "error");
+                showStatus("חלה שגיאה בתהליך השמירה. ודאו שאתם מריצים את האתר דרך חיבור מאובטח (HTTPS) ב-GitHub Pages ולא מקומית.", "error");
+            } finally {
+                // החזרת הכפתורים למצב פעיל
+                saveBtn.disabled = false;
+                addBtn.disabled = false;
+                saveBtn.innerHTML = '<i class="fas fa-save"></i> שמור שינויים באתר';
             }
         }
 
@@ -235,6 +262,7 @@
             const box = document.getElementById('status-box');
             box.className = "status " + className;
             box.innerHTML = text;
+            box.style.display = 'block'; // פותר את באג ה-Inline הנסתר ומכריח הצגה
         }
 
         function hideStatus() {
